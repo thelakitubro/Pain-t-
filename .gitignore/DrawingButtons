@@ -1,0 +1,289 @@
+package paint;
+
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import javafx.event.Event;
+import javafx.event.EventHandler;
+import javafx.scene.SnapshotParameters;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Button;
+import javafx.scene.control.ColorPicker;
+import javafx.scene.control.Slider;
+import javafx.scene.control.Tooltip;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.image.PixelReader;
+import javafx.scene.image.WritableImage;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.SVGPath;
+import static paint.Paint.textArea;
+import static paint.Paint.uRStack;
+
+public class DrawingButtons extends Buttons{
+    
+    //Set up buttons that don't rely on the window or image
+    Button mouse, pencil, eraser, btnRectangle, btnCircle, btnTriangle, addText, getColor;
+    
+    Slider lineWidth;
+    ColorPicker colorPicker;
+    SVGPath svg;
+    
+    public DrawingButtons() {
+        mouse = new Button("Mouse");
+        pencil = new Button("Pencil");
+        eraser = new Button("Eraser");
+        btnRectangle = new Button("Rectangle");
+        btnCircle = new Button("Circle");
+        btnTriangle = new Button("Triangle");
+        addText = new Button("Add Text");
+        lineWidth = new Slider();
+        colorPicker = new ColorPicker(Color.BLACK);
+        svg = new SVGPath();
+        getColor = new Button("Color Grabber");
+    }
+    
+    /**
+     * Set up buttons.
+     * Sets up mouse events for all of the buttons in this class.
+     * The setup is all grouped together in order to refer to the canvas and 
+     * graphics context quicker.
+     * 
+     * @param canvas     The recipient of the mouse events of the buttons.
+     * @param graphCont  Uses the initialized graphCont for consistency and line-saving.
+     */
+    public void setUpButtons(Canvas canvas, GraphicsContext graphCont) {
+        //Rectangle
+        btnRectangle.setOnAction(e -> {
+            displayButton(btnRectangle);
+            setMouseNull(canvas);
+            canvas.setOnMousePressed(new EventHandler<MouseEvent>() {
+                @Override
+                public void handle(MouseEvent event) {
+                    uRStack.saveToStack(canvas);
+                    graphCont.beginPath();
+                    posX = event.getX();
+                    posY = event.getY();
+                }
+            });
+            canvas.setOnMouseDragged(new EventHandler<MouseEvent>() {
+                @Override
+                public void handle(MouseEvent event) {}
+            });
+            canvas.setOnMouseReleased(new EventHandler<MouseEvent>() {
+                @Override
+                public void handle(MouseEvent event) {
+                    graphCont.rect(Math.min(posX, event.getX()), Math.min(posY, event.getY()), Math.abs(posX - event.getX()), Math.abs(posY - event.getY()));
+                    graphCont.fillRect(Math.min(posX, event.getX()), Math.min(posY, event.getY()), Math.abs(posX - event.getX()), Math.abs(posY - event.getY()));
+                    graphCont.closePath();
+                }
+            });
+        });
+        
+        //Circle
+        btnCircle.setOnAction(e -> {
+            displayButton(btnCircle);
+            setMouseNull(canvas);
+            canvas.setOnMousePressed(new EventHandler<MouseEvent>() {
+                @Override
+                public void handle(MouseEvent event) {
+                    uRStack.saveToStack(canvas);
+                    graphCont.beginPath();
+                    posX = event.getX();
+                    posY = event.getY();
+                }
+            });
+            canvas.setOnMouseDragged(new EventHandler<MouseEvent>() {
+                @Override
+                public void handle(MouseEvent event) {}
+            });
+            canvas.setOnMouseReleased(new EventHandler<MouseEvent>() {
+                @Override
+                public void handle(MouseEvent event) {
+                    graphCont.strokeOval(Math.min(posX, event.getX()), Math.min(posY, event.getY()), Math.abs(posX - event.getX()), Math.abs(posY - event.getY()));
+                    graphCont.fillOval(Math.min(posX, event.getX()), Math.min(posY, event.getY()), Math.abs(posX - event.getX()), Math.abs(posY - event.getY()));
+                    graphCont.closePath();
+                }
+            });
+        });
+        
+        //Triangle
+        btnTriangle.setOnAction(e -> {
+            displayButton(btnTriangle);
+            setMouseNull(canvas);
+            canvas.setOnMousePressed(new EventHandler<MouseEvent>() {
+                @Override
+                public void handle(MouseEvent event) {
+                    uRStack.saveToStack(canvas);
+                    posX = event.getX();
+                    posY = event.getY();
+                }
+            });
+            canvas.setOnMouseDragged(new EventHandler<MouseEvent>() {
+                @Override
+                public void handle(MouseEvent event) {}
+            });
+            canvas.setOnMouseReleased(new EventHandler<MouseEvent>() {
+                @Override
+                public void handle(MouseEvent event) {
+                    double[] triangleX = {posX, event.getX(), posX + (event.getX() - posX) / 2.0, posX};
+                    double[] triangleY = {event.getY(), event.getY(), posY, event.getY()};
+                    graphCont.strokePolygon(triangleX, triangleY, 3);
+                    graphCont.fillPolygon(triangleY, triangleY, 3);
+                }
+            });
+        });
+        
+        //Regular mouse: No Tool
+        mouse.setOnAction(e -> {
+            displayButton(mouse);
+            setMouseNull(canvas);
+        });
+
+        //Pencil tool
+        pencil.setOnAction(e -> {
+            displayButton(pencil);
+            setMouseNull(canvas);
+            canvas.setOnMousePressed(new EventHandler<MouseEvent>() {
+                @Override
+                public void handle(MouseEvent event) {
+                    uRStack.saveToStack(canvas);
+                    graphCont.beginPath();
+                    graphCont.moveTo(event.getSceneX(), event.getSceneY());
+                    graphCont.stroke();
+                }
+            });
+            canvas.setOnMouseDragged(new EventHandler<MouseEvent>() {
+                @Override
+                public void handle(MouseEvent event) {
+                    graphCont.lineTo(event.getX(), event.getY());
+                    graphCont.stroke();
+                }
+            });
+            canvas.setOnMouseReleased(new EventHandler<MouseEvent>() {
+                @Override
+                public void handle(MouseEvent event) {
+                    graphCont.closePath();
+                }
+            });
+        });
+
+        //Eraser
+        eraser.setOnAction(e -> {
+            displayButton(eraser);
+            setMouseNull(canvas);
+            canvas.setOnMousePressed(new EventHandler<MouseEvent>() {
+                @Override
+                public void handle(MouseEvent event) {
+                    graphCont.setStroke(Color.WHITE);
+                    uRStack.saveToStack(canvas);
+                    graphCont.beginPath();
+                    graphCont.moveTo(event.getSceneX(), event.getSceneY());
+                    graphCont.stroke();
+                }
+            });
+            canvas.setOnMouseDragged(new EventHandler<MouseEvent>() {
+                @Override
+                public void handle(MouseEvent event) {
+                    graphCont.lineTo(event.getX(), event.getY());
+                    graphCont.stroke();
+                }
+            });
+            canvas.setOnMouseReleased(new EventHandler<MouseEvent>() {
+                @Override
+                public void handle(MouseEvent event) {
+                    graphCont.closePath();
+                }
+            });
+        });
+        
+        //Edit width of line
+        lineWidth.valueProperty().addListener(new ChangeListener<Number>() {
+            public void changed(ObservableValue<? extends Number> ov,
+                    Number old_val, Number new_val) {
+                graphCont.setLineWidth(new_val.doubleValue());
+            }
+        });
+        
+        addText.setOnAction(e -> {
+            displayButton(addText);
+            setMouseNull(canvas);
+            canvas.setOnMousePressed(new EventHandler<MouseEvent>() {
+                @Override
+                public void handle(MouseEvent event) {
+                    uRStack.saveToStack(canvas);
+                    String insertText = textArea.getText();
+                    graphCont.strokeText(insertText, event.getX(), event.getY());
+                }
+            });
+            canvas.setOnMouseDragged(new EventHandler<MouseEvent>() {
+                @Override
+                public void handle(MouseEvent event) {
+                }
+            });
+            canvas.setOnMouseReleased(new EventHandler<MouseEvent>() {
+                @Override
+                public void handle(MouseEvent event) {
+                }
+            });
+        });
+        
+        //Color picker
+        svg.setContent("M70,50 L90,50 L120,90 L150,50 L170,50"
+                + "L210,90 L180,120 L170,110 L170,200 L70,200 L70,110 L60,120 L30,90"
+                + "L70,50");
+        svg.setEffect(new DropShadow());
+        svg.setFill(colorPicker.getValue());
+        colorPicker.setOnAction(new EventHandler() {
+            public void handle(Event t) {
+                svg.setFill(colorPicker.getValue());
+                graphCont.setStroke(colorPicker.getValue());
+            }
+        });
+        
+        //Grab background color
+        getColor.setOnAction(e -> {
+            displayButton(getColor);
+            setMouseNull(canvas);
+            canvas.setOnMousePressed(new EventHandler<MouseEvent>() {
+                @Override
+                public void handle(MouseEvent event) {
+                    WritableImage wim = new WritableImage((int) canvas.getWidth(), (int) canvas.getHeight());
+                    SnapshotParameters snap = new SnapshotParameters();
+                    snap.setFill(Color.TRANSPARENT);
+                    WritableImage snapshot = canvas.snapshot(snap, wim);
+                    PixelReader pixel = snapshot.getPixelReader();
+                    colorPicker.setValue(pixel.getColor((int) event.getX(), (int) event.getY()));
+                    graphCont.setStroke(colorPicker.getValue());
+                }
+            });
+            canvas.setOnMouseDragged(new EventHandler<MouseEvent>() {
+                @Override
+                public void handle(MouseEvent event) {
+                }
+            });
+            canvas.setOnMouseReleased(new EventHandler<MouseEvent>() {
+                @Override
+                public void handle(MouseEvent event) {
+                }
+            });
+        });
+    }
+    
+    /**
+     * Set up tool tips.
+     * Sets up the tool tips for the buttons in this class.
+     * 
+     * @see Explanations for each button
+     */
+    public void setToolTips() {
+        mouse.setTooltip(new Tooltip("Cancel using a drawing tool"));
+        pencil.setTooltip(new Tooltip("Draw freeform onto the image"));
+        eraser.setTooltip(new Tooltip("Erase markings made on image"));
+        btnRectangle.setTooltip(new Tooltip("Draws a rectangle from the start to the end of a mouse click"));
+        btnCircle.setTooltip(new Tooltip("Draws a circle from the start to the end of a mouse click"));
+        btnTriangle.setTooltip(new Tooltip("Draws a rectangle from the start to the end of a mouse click"));
+        addText.setTooltip(new Tooltip("Add some text to the image"));
+        getColor.setTooltip(new Tooltip("Select a specific color from the canvas"));
+    }
+}
